@@ -6,7 +6,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -29,7 +28,6 @@ public class SecurityConfig {
     private final JwtUtil jwtUtil;
     private final JwtFilter myJwtFilter;
 
-    // הזרקת ה-Filter וה-Util דרך הקונסטרקטור
     public SecurityConfig(JwtUtil jwtUtil, JwtFilter myJwtFilter) {
         this.jwtUtil = jwtUtil;
         this.myJwtFilter = myJwtFilter;
@@ -38,19 +36,14 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable()) // ביטול CSRF חובה לעבודה עם JWT ובקשות POST
-                .cors(cors -> cors.configurationSource(corsConfigurationSource())) // הגדרת ה-CORS
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // עבודה ללא Session
+                .csrf(csrf -> csrf.disable())
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/auth/login").permitAll() // דף התחברות פתוח לכולם
-
-                        // התיקון הקריטי: מאפשר גישה לנתיבי הדיווח והחיזוי על בסיס התפקידים מהטוקן
+                        .requestMatchers("/auth/login").permitAll()
                         .requestMatchers("/api/prediction/**").hasAnyRole("ADMIN", "ASTRONAUT")
-
-                        // הגנה על שאר חלקי המערכת
                         .anyRequest().authenticated()
                 )
-                // הוספת הפילטר של ה-JWT לפני הפילטר הסטנדרטי של Spring
                 .addFilterBefore(myJwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .headers(headers -> headers.frameOptions(frame -> frame.disable()));
 
@@ -60,7 +53,8 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:5173")); // Front-end של ויט/ריאקט
+        // הוספת ה-IP שמופיע בשגיאה לרשימת המורשים
+        config.setAllowedOrigins(List.of("http://localhost:5173", "http://192.168.56.1:5173"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
